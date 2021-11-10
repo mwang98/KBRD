@@ -107,6 +107,7 @@ class RedialTeacher(DialogTeacher):
             for line in json_file.readlines():
                 self.instances.append(json.loads(line))
 
+        rec_item_cnt = 0
         # define iterator over all queries
         for instance in self.instances:
             initiator_id = instance["initiatorWorkerId"]
@@ -135,7 +136,7 @@ class RedialTeacher(DialogTeacher):
                     message_idx += 1
                 source_text = [text for text in source_text if text != ""]
                 target_text = [text for text in target_text if text != ""]
-                if source_text != [] or target_text != []:
+                if source_text != [] and target_text != []:
                     for src in source_text:
                         mentioned_entities += self._get_entities(src)
                     target_mentioned_entities = []
@@ -152,11 +153,18 @@ class RedialTeacher(DialogTeacher):
                     turn += 1
                     if message_idx == len(messages) and target_text == "":
                         break
+                    
+                    target_movie_list = [entry for entry in target_movie_list if not entry in source_movie_list + \
+                                                                                              previously_mentioned_movies_list + \
+                                                                                              mentioned_entities]
+                    rec_item_cnt += len(target_movie_list)
+
                     yield (source_text, [target_text], None, [str(turn), ' '.join(previously_mentioned_movies_list + source_movie_list), ' '.join(target_movie_list), ' '.join(mentioned_entities), target_text], None), new_episode
                     new_episode = False
                     previously_mentioned_movies_list += source_movie_list + target_movie_list
                     mentioned_entities += target_mentioned_entities
-
+        
+        print('#rec item:', rec_item_cnt)
 
 class DefaultTeacher(RedialTeacher):
     pass
