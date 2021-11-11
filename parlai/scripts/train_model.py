@@ -256,7 +256,7 @@ class TrainLoop():
         # smart defaults for --validation-metric-mode
         if opt['validation_metric'] in {'loss', 'ppl', 'mean_rank'}:
             opt['validation_metric_mode'] = 'min'
-        elif opt['validation_metric'] in {'accuracy', 'hits@1', 'hits@5', 'f1', 'bleu'}:
+        elif opt['validation_metric'] in {'accuracy', 'hits@1', 'hits@5', 'f1', 'bleu', 'dist@1', 'dist@2', 'dist@3', 'dist@4'}:
             opt['validation_metric_mode'] = 'max'
         if opt.get('validation_metric_mode') is None:
             opt['validation_metric_mode'] = 'max'

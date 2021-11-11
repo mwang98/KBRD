@@ -1,0 +1,1 @@
+export PYTHONPATH=/home/u3043377/KBRD/:/home/u3043377/miniconda3/envs/KGSF/lib/python3.8/site-packages/

@@ -102,6 +102,31 @@ def _bleu(guess, answers):
         smoothing_function=nltkbleu.SmoothingFunction(epsilon=1e-12).method1,
     )
 
+def _dist(sentence, uni_set, bi_set, tri_set, qua_set):
+    """sentence: str"""
+    sentence = normalize_answer(sentence).split(" ")
+    uni_cnt = bi_cnt = tri_cnt = qua_cnt = 0
+    for word in sentence:
+        uni_cnt += 1
+        uni_set.add(word)
+    for start in range(len(sentence)-1):
+        bi_cnt += 1
+        bi_set.add(f'{sentence[start]} {sentence[start+1]}')
+    for start in range(len(sentence)-2):
+        tri_cnt += 1
+        tri_set.add(
+            f'{sentence[start]} {sentence[start+1]} {sentence[start+2]}')
+    for start in range(len(sentence)-3):
+        qua_cnt += 1
+        qua_set.add(
+            f'{sentence[start]} {sentence[start+1]} {sentence[start+2]} {sentence[start+3]}')
+
+def _gen_rec(guess, answers):
+    tgt_rec = sum('__unk__' in sen for sen in answers) > 0
+    inf_rec = '__unk__' in guess
+
+    return inf_rec, tgt_rec
+
 
 def aggregate_metrics(reporters):
     # reporters is a list of teachers or worlds
@@ -141,7 +166,7 @@ class Metrics(object):
     def __init__(self, opt):
         self.metrics = {}
         self.metrics['cnt'] = 0
-        self.metrics_list = ['mean_rank', 'loss', 'correct', 'f1', 'ppl']
+        self.metrics_list = ['mean_rank', 'loss', 'correct', 'f1', 'ppl', 'recall', 'precision']
         if nltkbleu is not None:
             # only compute bleu if we can
             self.metrics_list.append('bleu')
@@ -156,6 +181,8 @@ class Metrics(object):
         if opt.get('numthreads', 1) > 1:
             self.metrics = SharedTable(self.metrics)
             self.flags = SharedTable(self.flags)
+
+        self.n_grams_list = [set(), set(), set(), set()]
 
     def __str__(self):
         return str(self.metrics)
@@ -217,20 +244,28 @@ class Metrics(object):
             # F1 and BLEU metrics.
             f1 = _f1_score(prediction, labels)
             bleu = _bleu(prediction, labels)
+            _dist(prediction, *self.n_grams_list)
+            tgt_rec, inf_rec = _gen_rec(prediction, labels)
             with self._lock():
                 self.metrics['f1'] += f1
                 self.metrics['f1_cnt'] += 1
+                # bleu
                 if bleu is not None:
                     self.metrics['bleu'] += bleu
                     self.metrics['bleu_cnt'] += 1
-
+                # recall & precision
+                self.metrics['recall'] += (inf_rec == 1 and inf_rec == tgt_rec)
+                self.metrics['precision'] += (inf_rec == 1 and inf_rec == tgt_rec)
+                self.metrics['recall_cnt'] += tgt_rec
+                self.metrics['precision_cnt'] += inf_rec
+            
         # Ranking metrics.
         self.update_ranking_metrics(observation, labels)
 
         # User-reported metrics
         if 'metrics' in observation:
             for k, v in observation['metrics'].items():
-                if k not in ['correct', 'f1', 'hits@k', 'bleu']:
+                if k not in ['correct', 'f1', 'hits@k', 'bleu', 'recall', 'precision']:
                     if k in self.metrics_list:
                         with self._lock():
                             self.metrics[k] += v
@@ -283,6 +318,11 @@ class Metrics(object):
                         self.metrics[k] / max(1, self.metrics[k + '_cnt']),
                         4
                     )
+            if self.metrics['bleu_cnt'] > 0:
+                m['gen_rec_ratio'] = round_sigfigs(self.metrics['precision_cnt'] / max(1, self.metrics['bleu_cnt']), 4)
+                for i, n_gram_set in enumerate(self.n_grams_list):
+                    m[f'dist@{i+1}'] = round_sigfigs(len(n_gram_set)/self.metrics['bleu_cnt'], 4)
+                
         return m
 
     def clear(self):

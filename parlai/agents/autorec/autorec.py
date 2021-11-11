@@ -81,6 +81,7 @@ class AutorecAgent(TorchAgent):
         )
         self.metrics = {"loss": 0.0}
         self.metrics["recall@1"] = []
+        self.metrics["recall@5"] = []
         self.metrics["recall@10"] = []
         self.metrics["recall@50"] = []
         self.metrics["num_tokens"] = 0
@@ -97,7 +98,7 @@ class AutorecAgent(TorchAgent):
         m["num_tokens"] = self.metrics["num_tokens"]
         m["loss"] = self.metrics["loss"] / self.metrics["num_tokens"]
         # m["loss"] = self.criterion.normalize_loss_reset(self.metrics["loss"])
-        for x in ["1", "10", "50"]:
+        for x in ["1", "5", "10", "50"]:
             if f"recall@{x}" in self.metrics and self.metrics[f"recall@{x}"] != []:
                 m[f"recall@{x}"] = np.mean(self.metrics[f"recall@{x}"])
         for k, v in m.items():
@@ -108,6 +109,7 @@ class AutorecAgent(TorchAgent):
     def reset_metrics(self):
         self.metrics["loss"] = 0.0
         self.metrics["recall@1"] = []
+        self.metrics["recall@5"] = []
         self.metrics["recall@10"] = []
         self.metrics["recall@50"] = []
         self.metrics["num_tokens"] = 0
@@ -199,6 +201,7 @@ class AutorecAgent(TorchAgent):
         for b in range(bs):
             target_idx = self.movie_ids.index(ys[b].item())
             self.metrics["recall@1"].append(int(target_idx in pred_idx[b][:1].tolist()))
+            self.metrics["recall@5"].append(int(target_idx in pred_idx[b][:5].tolist()))
             self.metrics["recall@10"].append(
                 int(target_idx in pred_idx[b][:10].tolist())
             )

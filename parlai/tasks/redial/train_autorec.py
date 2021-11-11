@@ -24,7 +24,7 @@ if __name__ == '__main__':
         validation_patience=10,
         tensorboard_log=True,
         tensorboard_tag='task,model,batchsize,hiddensize,learningrate,model_file',
-        tensorboard_metrics="loss,recall@1,recall@10,recall@50",
+        tensorboard_metrics="loss,recall@1,recall@5,recall@10,recall@50",
     )
     opt = parser.parse_args()
     TrainLoop(opt).train()

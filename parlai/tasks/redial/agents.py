@@ -36,7 +36,7 @@ def _id2dbpedia(movie_id):
 
 
 def _text2entities(text, text_dict):
-    return text_dict[text]
+    return text_dict.get(text, [])
 
 
 class RedialTeacher(DialogTeacher):
@@ -87,13 +87,15 @@ class RedialTeacher(DialogTeacher):
                 entity = self.id2entity[int(movieId[1:])]
                 if entity is not None:
                     movieId_list.append(str(self.entity2entityId[entity]))
+                    original_movieId_list.append(movieId[1:])
                 else:
                     movieId_list.append(str(self.entity2entityId[int(movieId[1:])]))
+                    original_movieId_list.append(movieId[1:])
                 return DictionaryAgent.default_unk
             except Exception:
                 return ""
 
-        return re.sub(pattern, convert, text), movieId_list
+        return re.sub(pattern, convert, text), movieId_list, original_movieId_list
 
     def _get_entities(self, text):
         """text -> [#entity1, #entity2]"""
@@ -102,10 +104,16 @@ class RedialTeacher(DialogTeacher):
         return entities
 
     def setup_data(self, path):
+        path = '/home/u3043377/KBRD/data/redial/test_data.jsonl'
+        n_rec = 0
+        all_rec_movie_ids = []
+        o_all_rec_movie_ids = []
+        
         self.instances = []
         with open(path) as json_file:
             for line in json_file.readlines():
                 self.instances.append(json.loads(line))
+
 
         # define iterator over all queries
         for instance in self.instances:
@@ -116,6 +124,7 @@ class RedialTeacher(DialogTeacher):
             new_episode = True
 
             previously_mentioned_movies_list = []
+            o_previously_mentioned_movies_list = []
             mentioned_entities = []
             turn = 0
             while message_idx < len(messages):
@@ -135,7 +144,7 @@ class RedialTeacher(DialogTeacher):
                     message_idx += 1
                 source_text = [text for text in source_text if text != ""]
                 target_text = [text for text in target_text if text != ""]
-                if source_text != [] or target_text != []:
+                if source_text != [] and target_text != []:
                     for src in source_text:
                         mentioned_entities += self._get_entities(src)
                     target_mentioned_entities = []
@@ -143,19 +152,37 @@ class RedialTeacher(DialogTeacher):
                         target_mentioned_entities += self._get_entities(tgt)
                     source_text = '\n'.join(source_text)
                     target_text = '\n'.join(target_text)
-                    source_text, source_movie_list = self._convert_ids_to_indices(
+                    source_text, source_movie_list, o_source_movie_list  = self._convert_ids_to_indices(
                         source_text, instance["initiatorQuestions"]
                     )
-                    target_text, target_movie_list = self._convert_ids_to_indices(
+                    target_text, target_movie_list, o_target_movie_list = self._convert_ids_to_indices(
                         target_text, instance["initiatorQuestions"]
                     )
                     turn += 1
                     if message_idx == len(messages) and target_text == "":
                         break
-                    yield (source_text, [target_text], None, [str(turn), ' '.join(previously_mentioned_movies_list + source_movie_list), ' '.join(target_movie_list), ' '.join(mentioned_entities), target_text], None), new_episode
+                    
+                    # only retain new target
+                    target_movie_list = [entry for entry in target_movie_list if not entry in source_movie_list + \
+                                                                                              previously_mentioned_movies_list + \
+                                                                                              mentioned_entities]
+                    o_target_movie_list = [entry for entry in o_target_movie_list if not entry in o_source_movie_list + \
+                                                                                              o_previously_mentioned_movies_list]
+                    
+                    n_rec += len(target_movie_list)
+                    all_rec_movie_ids.extend(target_movie_list)
+                    o_all_rec_movie_ids.extend(o_target_movie_list)
+
+                    # yield (source_text, [target_text], None, [str(turn), ' '.join(previously_mentioned_movies_list + source_movie_list), ' '.join(target_movie_list), ' '.join(mentioned_entities), target_text], None), new_episode
                     new_episode = False
                     previously_mentioned_movies_list += source_movie_list + target_movie_list
+                    o_previously_mentioned_movies_list += o_source_movie_list + o_target_movie_list
                     mentioned_entities += target_mentioned_entities
+
+        print(n_rec)
+        print(len(o_all_rec_movie_ids))
+        json.dump(o_all_rec_movie_ids, open('test_rec_movie_ids.json', 'w'), indent=4)
+        exit()
 
 
 class DefaultTeacher(RedialTeacher):
