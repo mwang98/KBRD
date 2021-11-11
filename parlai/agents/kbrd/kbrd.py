@@ -289,14 +289,6 @@ class KbrdAgent(TorchAgent):
             self.metrics["recall@5"] += int(target_idx in pred_idx[b][:5].tolist())
             self.metrics["recall@10"] += int(target_idx in pred_idx[b][:10].tolist())
             self.metrics["recall@50"] += int(target_idx in pred_idx[b][:50].tolist())
-            # self.metrics[f"recall@1@turn{turns[b]}"] += int(target_idx in pred_idx[b][:1].tolist())
-            # self.metrics[f"recall@5@turn{turns[b]}"] += int(target_idx in pred_idx[b][:5].tolist())
-            # self.metrics[f"recall@10@turn{turns[b]}"] += int(target_idx in pred_idx[b][:10].tolist())
-            # self.metrics[f"recall@50@turn{turns[b]}"] += int(target_idx in pred_idx[b][:50].tolist())
-            # self.counts[f"recall@1@turn{turns[b]}"] += 1
-            # self.counts[f"recall@5@turn{turns[b]}"] += 1
-            # self.counts[f"recall@10@turn{turns[b]}"] += 1
-            # self.counts[f"recall@50@turn{turns[b]}"] += 1
             self.counts[f"recall@1"] += 1
             self.counts[f"recall@5"] += 1
             self.counts[f"recall@10"] += 1
